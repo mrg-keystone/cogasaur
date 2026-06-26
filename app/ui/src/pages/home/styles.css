@@ -1,0 +1,37 @@
+.home {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+.home h1 {
+  font-size: 1.5rem;
+}
+.src code {
+  color: #70e1a0;
+}
+dl {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  gap: 0.4rem 1rem;
+  margin: 1.25rem 0;
+}
+dt {
+  color: #7587a0;
+}
+dd {
+  margin: 0;
+  font-family: ui-monospace, Menlo, monospace;
+  color: #4cc2ff;
+}
+button {
+  font: inherit;
+  border: 1px solid #33547e;
+  background: #1d2c44;
+  color: #d7e0ea;
+  border-radius: 6px;
+  padding: 0.5rem 0.85rem;
+  cursor: pointer;
+}
+.err {
+  color: #ff8a8a;
+}

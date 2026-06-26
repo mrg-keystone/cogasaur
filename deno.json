@@ -20,8 +20,9 @@
       "LICENSE"
     ],
     "exclude": [
-      "app/node_modules",
-      "app/_fresh",
+      "app/**/node_modules",
+      "app/**/static",
+      "app/**/_fresh",
       "**/deno.lock",
       "**/*.log"
     ]

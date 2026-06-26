@@ -1,64 +1,86 @@
 # cogasaur
 
-Build Electron-style desktop apps on a pure Deno stack — **keep** backend + **Fresh 2** SSR
-frontend + a **native webview** window, all in **one process**. No Node, no bundled Chromium.
+Build desktop apps on a pure Deno stack — a **rune** backend + **sprig** SSR frontend +
+a **native webview** window, all on one origin in **one process**. No Node, no bundled
+Chromium. Published on JSR as [`@mrg-keystone/cogasaur`](https://jsr.io/@mrg-keystone/cogasaur).
 
-## Architecture (one process, two threads)
+## Architecture (one origin, two threads)
 
 ```
-main thread   → native webview window  →  loads http://localhost:<port>
-worker thread → Deno.serve( built Fresh app .use(embed(keep,{at:'/api'})) )
-                SSR reads keep IN-PROCESS via ctx.state.api.fetch   ← "the bridge"
-                browser islands hit /api over HTTP (localhost-trusted)
+main thread   → native webview window  →  loads http://localhost:<port>/ui
+worker thread → Deno.serve( serveSprig({ keep: api, app, base:"/ui" }) )
+                  api = bootstrapServer("server", modules)    ← rune backend
+                  app = bootstrap({ routes, base, renderer })  ← sprig UI
+                  /api/*  → rune backend (token-gated network channel)
+                  else    → sprig SSR, reading rune IN-PROCESS via inject(Backend)
 ```
 
-`webview.run()` blocks the main thread's event loop, so the Fresh+keep server runs on a
-worker thread — that's what keeps it one process while the window stays responsive.
+`serveSprig` (`@sprig/core/keep`) folds the rune backend's `{ backend, handler }` and the
+sprig UI into one `{ fetch }` handler. `webview.run()` blocks the main thread, so that
+handler runs on a worker thread — one process, responsive window.
 
 ## Scaffold an app
 
 ```bash
-# one-time: put the CLI on your PATH
-cd cogasaur
-deno task install               # installs `cogasaur` globally
+# install the cogasaur CLI from JSR
+deno install -gA -n cogasaur jsr:@mrg-keystone/cogasaur
 
 # scaffold (copies the template + runs `deno install`)
 cogasaur new my-app
-#   or, without a global install:  deno task new my-app
+#   or run it straight from JSR, no install:
+#   deno run -A jsr:@mrg-keystone/cogasaur new my-app
 
-# run it
 cd my-app
-deno task desktop               # build the Fresh app + open the native window
-# or
-deno task start                 # run the same app in a browser instead
+deno task desktop      # build the UI + open the native window
+deno task start        # or serve in a browser at http://localhost:8000/ui
+```
+
+A scaffolded app needs the two framework CLIs (its README repeats this):
+
+```bash
+curl -fsSL https://github.com/mrg-keystone/rune/releases/download/latest/install.sh | sh
+deno install -gAf -n sprig jsr:@sprig/core/cli
 ```
 
 ## What a scaffolded app contains
 
 ```
 my-app/
-  backend.ts          keep app — your @Endpoint controllers (the privileged "main process")
-  main.ts             Fresh App: staticFiles + embed(keep,{at:'/api'}) + fsRoutes
-  routes/index.tsx    SSR route — loads keep via ctx.state.api.fetch in a handler
-  islands/Info.tsx    island — calls keep at /api in the browser
+  server/             rune backend
+    spec/runes/core.rune   shared [SRV] services
+    src/info/info.rune     the info module spec — edit, then `deno task sync`
+    src/info/…             generated + filled module (coordinators, dtos, http edge)
+    bootstrap/mod.ts       bootstrapServer("server", modules) → `api`
+  ui/                 sprig frontend
+    src/main.ts            routes + renderer + bootstrap → `app`
+    src/shell/             the document layout (<router-outlet>)
+    src/pages/home/        resolve.ts (SSR reads the backend in-process) + template
+    src/islands/info-live/ an island (ships JS; hits /api in the browser)
+  serve.ts            serveSprig composition root
   shell.ts            desktop entry: spawns the worker + opens the native window
-  server.worker.ts    worker: serves the built Fresh+keep handler
-  vite.config.ts      SSR externalization of keep's deps + preact dedupe
-  utils.ts            State extends KeepState (so ctx.state.api is typed)
-  deno.json           tasks: build · start (web) · desktop (window) · shell
+  server.worker.ts    worker: serves the serveSprig handler
+  deno.json           workspace [server, ui] + tasks: build · start · dev · desktop · sync
 ```
 
 ## Add a backend capability
 
-1. Add an `@Endpoint` to `backend.ts` (e.g. `@Endpoint({ method:"get", path:"files", output: ... })`).
-2. SSR it: in a route handler, `await ctx.state.api.fetch("/app/files")` (in-process, no token).
-3. Or call it from the browser: `fetch("/api/app/files")` in an island.
+1. Edit `server/src/info/info.rune` (or add `server/spec/runes/<m>.rune`):
+   `[ENT] http.foo(FooDto): BarDto` → `[REQ] thing.foo(FooDto): BarDto` + recipe.
+2. `deno task sync` — rune regenerates the module; fill the coordinator/business stubs.
+3. SSR it: in a page `resolve.ts`, `inject(Backend).get("/http/foo", { method: "POST", body })`.
+4. Or from the browser (island): `fetch("/api/http/foo", { method: "POST", … })`.
 
-keep's cake (`/docs/<module>`) and system map (`/docs/_map`) are available in the window for free.
+## Security — rooted in infra
 
-## Notes / gotchas (already handled in the template)
+Because the backend runs on the rune (keep) runtime, security roots in **infra** (the
+keystone control plane) automatically: set `INFRA_URL` and the runtime wires the infra
+token-exchange client, the offline JWKS verifier, and the revocation poller; endpoints
+authorize with `@Public` / `@Roles` / `@claims` + `getIdentity`. Unset locally, the
+loopback origin is trusted and SSR reads the backend in-process — the desktop app just works.
 
-- keep's `@Endpoint` path defaults to the **controller root** — always set `path` explicitly.
-- The SSR build externalizes **only keep's dep tree** (preact/fresh stay bundled — externalizing
-  them gives a second preact instance and a silently-empty render).
-- The runtime tasks pass `--node-modules-dir=auto` so Deno resolves keep's externalized deps.
+## The CLI is published from `main`
+
+Push to `main` → the [`mrg-keystone/actions`](https://github.com/mrg-keystone/actions) JSR
+workflow validates, computes the next version, and publishes `@mrg-keystone/cogasaur`. The
+`app/` template (copied into every scaffold) is shipped via `cli/template-manifest.ts` —
+regenerate it with `deno task gen:manifest` after any change under `app/`.

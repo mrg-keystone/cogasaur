@@ -1,0 +1,18 @@
+<main class="home">
+  <h1>🦕 {{ info ? info.app : 'cogasaur' }} · rune + sprig</h1>
+  <p class="src">SSR'd by sprig; the values below were read from the rune backend
+    <b>in-process</b> (no network hop, no token):</p>
+
+  @if (info) {
+    <dl>
+      <dt>runtime</dt><dd>{{ info.runtime }}</dd>
+      <dt>pid</dt><dd>{{ info.pid }}</dd>
+      <dt>app</dt><dd>{{ info.app }}</dd>
+    </dl>
+  } @else {
+    <p>(no backend data)</p>
+  }
+
+  <!-- island: same endpoint, but over the token-gated /api network channel -->
+  <info-live></info-live>
+</main>

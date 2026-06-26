@@ -1,14 +1,12 @@
 /// <reference lib="deno.worker" />
-// server.worker.ts — runs the BUILT Fresh app (which embeds keep) on a worker thread,
-// so the main thread's blocking webview.run() can't starve it. One process, two threads.
-import handler from "./_fresh/server.js";
+// Worker thread: hosts the composed serveSprig handler on its own event loop, so
+// the main thread's blocking webview.run() can't starve it. Binds to a free port
+// and reports it back to the shell.
+import handler from "./serve.ts";
 
-const server = Deno.serve({
+Deno.serve({
   port: 0,
   onListen: ({ port }) => {
     (self as unknown as Worker).postMessage({ type: "ready", port });
   },
-  // forward `info` so keep's localhost trust keeps working for /api calls from the window
-}, (req, info) => handler.fetch(req, info));
-
-await server.finished;
+}, handler.fetch);

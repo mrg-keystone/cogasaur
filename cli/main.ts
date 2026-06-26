@@ -1,12 +1,12 @@
 #!/usr/bin/env -S deno run -A
-// cogasaur — scaffold desktop apps on the Deno stack (keep backend + Fresh SSR + native webview).
-//
-// Usage:
-//   cogasaur new <name> [--dir <parent>]
-//   cogasaur help
+// cogasaur — scaffold desktop apps on the Deno stack:
+// rune backend + sprig SSR frontend + native webview, one origin, one process.
+import { Command } from "jsr:@cliffy/command@^1.0.0-rc.7";
+import { colors } from "jsr:@cliffy/ansi@^1.0.0-rc.7/colors";
 import { dirname, join, resolve } from "jsr:@std/path@1";
 import { TEMPLATE_FILES } from "./template-manifest.ts";
 
+const VERSION = "0.2.0";
 const TEMPLATE = new URL("../app/", import.meta.url);
 
 async function exists(path: string): Promise<boolean> {
@@ -41,77 +41,60 @@ async function applyName(dir: string, name: string) {
     } catch { /* file may not exist; ignore */ }
   };
   await sub("shell.ts", `w.title = "cogasaur app";`, `w.title = ${JSON.stringify(name)};`);
-  await sub("routes/_app.tsx", `<title>app</title>`, `<title>${name}</title>`);
 }
 
-function help() {
-  console.log(`cogasaur — desktop apps on Deno (keep + Fresh + native webview)
+const newCmd = new Command()
+  .description("Scaffold a new cogasaur desktop app into <parent>/<name>.")
+  .arguments("<name:string>")
+  .option("--dir <parent:string>", "Parent directory to scaffold into.", { default: "." })
+  .option("--no-install", "Skip the post-scaffold `deno install`.")
+  .action(async (opts, name) => {
+    const target = resolve(opts.dir, name);
+    if (await exists(target)) {
+      throw new Error(`refusing to scaffold: ${target} already exists`);
+    }
 
-Usage:
-  cogasaur new <name> [--dir <parent>]   Scaffold a new app into <parent>/<name>
-  cogasaur help                          Show this help
+    await copyTemplate(target);
+    await applyName(target, name);
 
-After scaffolding:
-  cd <name>
-  deno task desktop      # build the Fresh app + open the native window
-  deno task start        # run the same app in a browser instead
-  deno task build        # just build (produces _fresh/)
+    if (opts.install) {
+      console.log("  installing dependencies (deno install)…");
+      const install = await new Deno.Command("deno", {
+        args: ["install"],
+        cwd: target,
+        stdout: "inherit",
+        stderr: "inherit",
+      }).output();
+      if (!install.success) {
+        console.error(
+          colors.yellow(`⚠ deno install failed — run it yourself in ${name}/ before building.`),
+        );
+      }
+    }
 
-What you get: a keep backend (backend.ts), a Fresh 2 UI (routes/ + islands/) that
-embeds keep at /api and SSRs from it in-process, and a one-process native shell
-(shell.ts + server.worker.ts).`);
-}
-
-async function cmdNew(args: string[]) {
-  const name = args.find((a) => !a.startsWith("-"));
-  if (!name) {
-    console.error("usage: cogasaur new <name> [--dir <parent>]");
-    Deno.exit(1);
-  }
-  const di = args.indexOf("--dir");
-  const parent = di >= 0 && args[di + 1] ? args[di + 1] : Deno.cwd();
-  const target = resolve(parent, name);
-
-  if (await exists(target)) {
-    console.error(`refusing to scaffold: ${target} already exists`);
-    Deno.exit(1);
-  }
-
-  await copyTemplate(target);
-  await applyName(target, name);
-
-  // Populate node_modules (Fresh/Vite needs it) — same step @fresh/init runs.
-  console.log("  installing dependencies (deno install)…");
-  const install = await new Deno.Command("deno", {
-    args: ["install"],
-    cwd: target,
-    stdout: "inherit",
-    stderr: "inherit",
-  }).output();
-  if (!install.success) {
-    console.error(`\n⚠ deno install failed — run it yourself in ${name}/ before building.`);
-  }
-
-  console.log(`✅ scaffolded "${name}" → ${target}
+    console.log(`
+${colors.green("✓")} scaffolded ${colors.bold(name)} → ${target}
 
   cd ${name}
-  deno task desktop      # build + open the native window
-`);
-}
+  deno task desktop      ${colors.dim("# build the UI + open the native window")}
 
-const [cmd, ...rest] = Deno.args;
-switch (cmd) {
-  case "new":
-    await cmdNew(rest);
-    break;
-  case undefined:
-  case "help":
-  case "-h":
-  case "--help":
-    help();
-    break;
-  default:
-    console.error(`unknown command: ${cmd}\n`);
-    help();
+  ${colors.dim("needs the rune + sprig CLIs — see the generated README.md")}
+`);
+  });
+
+const cli = new Command()
+  .name("cogasaur")
+  .version(VERSION)
+  .description("Desktop apps on Deno — rune backend + sprig SSR + native webview.")
+  .action(function () {
+    this.showHelp();
+  })
+  .command("new", newCmd)
+  .error((err: Error) => {
+    console.error(colors.red("✗ ") + err.message);
     Deno.exit(1);
+  });
+
+if (import.meta.main) {
+  await cli.parse(Deno.args);
 }

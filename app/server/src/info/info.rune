@@ -1,0 +1,23 @@
+[MOD] info
+
+// HTTP edge — one inbound route. Dispatches to the read coordinator.
+[ENT] http.read({}): InfoDto
+
+// The operation: gather host runtime facts into the DTO.
+[REQ] info.read({}): InfoDto
+    [NEW] info
+    info.gather(): info
+    info.toDto(): InfoDto
+
+[TYP] runtime: string
+    the JS runtime version string (e.g. "Deno 2.8.3")
+[TYP:int] pid: number
+    the OS process id of the backend
+[TYP:nonempty] app: string
+    the backend app name
+
+[DTO] InfoDto: runtime, pid, app
+    a snapshot of host runtime facts, read by the UI
+
+[NON] info
+    host runtime facts

@@ -1,0 +1,7 @@
+/* Global document styles (the shell is the one place :global is idiomatic). */
+:global(body) {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #0a0e14;
+  color: #d7e0ea;
+}

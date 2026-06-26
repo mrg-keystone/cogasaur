@@ -1,9 +1,9 @@
 <section class="live">
   <button (click)="refresh()">re-read over /api (browser)</button>
-  @if (info) {
-    <p class="ok">browser read → pid {{ info.pid }} · {{ info.runtime }}</p>
+  @if (info()) {
+    <p class="ok">browser read → pid {{ info().pid }} · {{ info().runtime }}</p>
   }
-  @if (error) {
-    <p class="err">{{ error }}</p>
+  @if (error()) {
+    <p class="err">{{ error() }}</p>
   }
 </section>

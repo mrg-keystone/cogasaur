@@ -14,9 +14,9 @@
   },
   "tasks": {
     "sync": "rune sync server/src/info/info.rune",
-    "build": "deno run -A jsr:@sprig/core/cli build ui",
+    "build": "sprig build ui",
     "start": "deno serve -A --unstable-kv --node-modules-dir=auto serve.ts",
-    "dev": "deno run -A jsr:@sprig/core/cli dev ui",
+    "dev": "sprig dev ui",
     "desktop": "deno task build && deno run -A --unstable-ffi --unstable-kv --node-modules-dir=auto shell.ts"
   },
   "nodeModulesDir": "auto",

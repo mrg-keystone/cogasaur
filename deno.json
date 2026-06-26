@@ -3,18 +3,10 @@
   "version": "0.1.0",
   "exports": "./cli/main.ts",
   "license": "MIT",
-  "compilerOptions": {
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
-  },
   "imports": {
-    "@webview/webview": "jsr:@webview/webview@0.9.0",
-    "@mrg-keystone/keep": "jsr:@mrg-keystone/keep@^1",
-    "@danet/swagger/decorators": "jsr:@danet/swagger@2/decorators",
     "@std/path": "jsr:@std/path@1"
   },
   "tasks": {
-    "core": "deno run --unstable-ffi -A runtime/main.ts",
     "new": "deno run -A cli/main.ts new",
     "install": "deno install -gA -f -n cogasaur cli/main.ts",
     "gen:manifest": "deno run -A cli/gen-manifest.ts"
@@ -24,7 +16,8 @@
       "cli/",
       "app/",
       "deno.json",
-      "README.md"
+      "README.md",
+      "LICENSE"
     ],
     "exclude": [
       "app/node_modules",

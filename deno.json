@@ -1,6 +1,6 @@
 {
   "name": "@mrg-keystone/cogasaur",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "exports": "./cli/main.ts",
   "license": "MIT",
   "imports": {

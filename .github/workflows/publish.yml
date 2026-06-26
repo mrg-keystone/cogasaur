@@ -1,0 +1,20 @@
+name: Publish to JSR
+
+# Reusable org workflow (mrg-keystone/actions/jsr-publish):
+# push to main -> validate -> settle in-flight publishes -> compute the next
+# version from the published baseline + commit messages -> bump if needed ->
+# registry-watched publish. Every hang/version defense lives in the reusable
+# workflow; the scope/package come from deno.json's "name".
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write   # the auto-bump commits the new version back to main
+
+jobs:
+  publish:
+    uses: mrg-keystone/actions/.github/workflows/jsr-publish.yml@main
+    secrets:
+      JSR_TOKEN: ${{ secrets.JSR_TOKEN }}

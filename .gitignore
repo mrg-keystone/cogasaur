@@ -1,0 +1,10 @@
+# Deno / Fresh build artifacts
+node_modules/
+_fresh/
+
+# Logs & OS cruft
+*.log
+.DS_Store
+
+# Tooling scratch
+.playwright-mcp/

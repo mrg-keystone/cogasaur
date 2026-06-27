@@ -26,9 +26,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Pin Deno 2.8.x on purpose. Deno 2.9 turns on a default 24-hour "minimum
+      # dependency age" that refuses any package published in the last day — it
+      # rejects a just-released dep (e.g. the sprig fix) and makes this build smoke
+      # flap on dependency recency, not on the scaffold. The smoke's job is to prove
+      # the scaffold builds against the LATEST published deps, so we run the last
+      # Deno without that default. Bump this deliberately, never back to v2.x.
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: "2.8.3"
 
       # Template must stay inert (no live modules publish would rewrite) and every
       # manifest entry must actually ship (no .gitignore-style 404s).

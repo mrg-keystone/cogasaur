@@ -9,8 +9,8 @@
     "$": "./src/main.ts",
     "$.pages/": "./src/pages/",
     "$.shared-components/": "./src/shared-components/",
-    "@sprig/core": "jsr:@sprig/core@^0.12.7",
-    "@sprig/keep": "jsr:@sprig/core@^0.12.7/keep",
+    "@sprig/core": "jsr:@sprig/core@^0.12.10",
+    "@sprig/keep": "jsr:@sprig/core@^0.12.10/keep",
     "@std/path": "jsr:@std/path@^1"
   }
 }

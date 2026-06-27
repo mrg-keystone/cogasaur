@@ -8,8 +8,8 @@
     "emitDecoratorMetadata": true
   },
   "imports": {
-    "@sprig/core": "jsr:@sprig/core@^0.12.7",
-    "@sprig/keep": "jsr:@sprig/core@^0.12.7/keep",
+    "@sprig/core": "jsr:@sprig/core@^0.12.10",
+    "@sprig/keep": "jsr:@sprig/core@^0.12.10/keep",
     "@webview/webview": "jsr:@webview/webview@0.9.0"
   },
   "tasks": {

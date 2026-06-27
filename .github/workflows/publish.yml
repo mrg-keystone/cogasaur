@@ -1,20 +1,80 @@
 name: Publish to JSR
 
-# Reusable org workflow (mrg-keystone/actions/jsr-publish):
-# push to main -> validate -> settle in-flight publishes -> compute the next
-# version from the published baseline + commit messages -> bump if needed ->
-# registry-watched publish. Every hang/version defense lives in the reusable
-# workflow; the scope/package come from deno.json's "name".
+# push to main -> smoke-test the scaffold -> (only if green) publish.
+# On a pull_request we run smoke only — never publish.
+#
+# The publish job is the reusable org workflow (mrg-keystone/actions/jsr-publish):
+# validate -> settle in-flight publishes -> compute the next version from the
+# published baseline + commit messages -> bump if needed -> registry-watched
+# publish. Every hang/version defense lives there; scope/package come from
+# deno.json's "name".
 on:
   push:
     branches:
       - main
+  pull_request:
 
 permissions:
   contents: write   # the auto-bump commits the new version back to main
 
 jobs:
+  # Gate: prove a fresh scaffold actually builds before anything is published.
+  # This is the safety net the package lacked when 0.1.0 (dotfile 404) and
+  # 0.2.1 (./@ import rewrite) both published green while producing apps that
+  # could not even type-check.
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # Template must stay inert (no live modules publish would rewrite) and every
+      # manifest entry must actually ship (no .gitignore-style 404s).
+      - name: Verify template publish invariants
+        run: deno task verify
+
+      # The committed manifest must match what's on disk under app/.
+      - name: Manifest is current
+        run: |
+          deno task gen:manifest
+          git diff --exit-code -- cli/template-manifest.ts \
+            || { echo "::error::cli/template-manifest.ts is stale — run 'deno task gen:manifest'"; exit 1; }
+
+      - name: Scaffold a fresh app
+        run: deno run -A cli/main.ts new smoke --dir "$RUNNER_TEMP" --no-install
+
+      # The exact failure mode of 0.2.1: aliased imports rewritten to ./@…
+      - name: No rewritten ./@ imports leaked into the scaffold
+        run: |
+          if grep -rn 'from "\./@' "$RUNNER_TEMP/smoke" --include='*.ts'; then
+            echo "::error::scaffold contains rewritten ./@ imports — publish-time rewrite regression"
+            exit 1
+          fi
+
+      # `deno check serve.ts` walks the whole app graph (server + ui). This is the
+      # precise command that emitted 6× TS2307 against the broken 0.2.1 release.
+      - name: Install deps + type-check the scaffold
+        working-directory: ${{ runner.temp }}/smoke
+        run: |
+          deno install
+          deno check serve.ts
+
+      # Build the scaffold's UI for real. The two upstream sprig CLI bugs that
+      # blocked this are fixed in @sprig/core 0.12.10: the jsr-install load crash
+      # (fromFileUrl on an https module URL) and the grammar wasm that JSR rewrote
+      # `env` → `./env` (now shipped as grammar.bin so publish can't touch it). A
+      # green build is a publish gate.
+      - name: sprig build the scaffold
+        working-directory: ${{ runner.temp }}/smoke
+        run: |
+          deno install -gAf -n sprig jsr:@sprig/core/cli
+          deno task build
+
   publish:
+    needs: smoke
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     uses: mrg-keystone/actions/.github/workflows/jsr-publish.yml@main
     secrets:
       JSR_TOKEN: ${{ secrets.JSR_TOKEN }}

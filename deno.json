@@ -9,7 +9,8 @@
   "tasks": {
     "new": "deno run -A cli/main.ts new",
     "install": "deno install -gA -f -n cogasaur cli/main.ts",
-    "gen:manifest": "deno run -A cli/gen-manifest.ts"
+    "gen:manifest": "deno run -A cli/gen-manifest.ts",
+    "verify": "deno run -A cli/verify-publish.ts"
   },
   "publish": {
     "include": [

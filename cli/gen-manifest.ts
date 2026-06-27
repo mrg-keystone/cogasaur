@@ -5,6 +5,11 @@
 // JSR there is no remote directory listing, so the file set has to be baked in.
 // Run this whenever you add/remove/rename a file under app/:
 //   deno task gen:manifest
+//
+// Entries are listed by their on-disk name, including the inert `.tmpl` suffix
+// on source files (e.g. `serve.ts.tmpl`). That suffix keeps `deno publish` from
+// parsing them as modules and rewriting their imports; copyTemplate() strips it
+// on write. See cli/verify-publish.ts for the invariant that enforces this.
 import { relative } from "jsr:@std/path@1";
 
 const TEMPLATE = new URL("../app/", import.meta.url);

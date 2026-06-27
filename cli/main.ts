@@ -5,9 +5,34 @@ import { Command } from "jsr:@cliffy/command@^1.0.0-rc.7";
 import { colors } from "jsr:@cliffy/ansi@^1.0.0-rc.7/colors";
 import { dirname, join, resolve } from "jsr:@std/path@1";
 import { TEMPLATE_FILES } from "./template-manifest.ts";
+import denoJson from "../deno.json" with { type: "json" };
 
-const VERSION = "0.2.0";
+// Read straight from the package manifest so the `--version` banner tracks the
+// CI auto-bump (which rewrites deno.json's version) instead of drifting behind it.
+const VERSION = denoJson.version;
 const TEMPLATE = new URL("../app/", import.meta.url);
+
+// Template source files ship with this inert suffix so `deno publish` can't parse
+// them as modules and rewrite their `@sprig/*` / `@/…` imports to broken `./@…`
+// paths — see cli/verify-publish.ts. The scaffolder strips it on write.
+const TMPL_SUFFIX = ".tmpl";
+
+// A scaffolded app's `.gitignore`. Generated rather than templated: JSR/`deno
+// publish` silently drops `.gitignore` from a package, so a templated one 404s
+// when the CLI fetches it from the registry. Mirrors the build/install artifacts
+// that gen-manifest.ts already keeps out of the template.
+const GITIGNORE = `# Deno + framework build artifacts
+node_modules/
+static/
+_fresh/
+
+# Local env & secrets
+.env
+
+# Logs & OS cruft
+*.log
+.DS_Store
+`;
 
 async function exists(path: string): Promise<boolean> {
   try {
@@ -26,7 +51,9 @@ async function copyTemplate(dst: string) {
   for (const rel of TEMPLATE_FILES) {
     const res = await fetch(new URL(rel, TEMPLATE));
     if (!res.ok) throw new Error(`failed to read template file ${rel}: ${res.status}`);
-    const out = join(dst, rel);
+    // Strip the inert publish suffix: `serve.ts.tmpl` → `serve.ts` in the scaffold.
+    const written = rel.endsWith(TMPL_SUFFIX) ? rel.slice(0, -TMPL_SUFFIX.length) : rel;
+    const out = join(dst, written);
     await Deno.mkdir(dirname(out), { recursive: true });
     await Deno.writeFile(out, new Uint8Array(await res.arrayBuffer()));
   }
@@ -56,6 +83,7 @@ const newCmd = new Command()
 
     await copyTemplate(target);
     await applyName(target, name);
+    await Deno.writeTextFile(join(target, ".gitignore"), GITIGNORE);
 
     if (opts.install) {
       console.log("  installing dependencies (deno install)…");
